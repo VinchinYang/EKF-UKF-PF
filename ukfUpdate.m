@@ -18,12 +18,12 @@ observationDim=2;
 % Q:2x2 matrix
 % UKF params
 augStateDim = stateDim + motionDim + observationDim;
-alfa = 2; % alfa and k are the scaling parameters that determine how far
-k = 0.1;    %the sigma points are spread from the mean.
+alfa = 0.001; % alfa and k are the scaling parameters that determine how far
+k = 1;    %the sigma points are spread from the mean.
 lamda = alfa*alfa*(augStateDim+k)-augStateDim;
 beda = 2;%optimal value for gausian noise 
 % Augmented state
-mu_a = [mu' 0 0 0 0 markerId]';
+mu_a = [mu' 0 0 0 0 0]';
 Sigma_a = blkdiag(Sigma, M, Q);%3+3+2 x 3+3+2
 
 % Sigma points
@@ -44,7 +44,7 @@ covarianceWeight = zeros(numPoints,1);
 meanWeight(1) = lamda/(lamda+augStateDim);
 covarianceWeight(1) = meanWeight(1) + (1-alfa^2+beda);
 for ii = 1:2*augStateDim
-    meanWeight(ii+1) = lamda/(2*(lamda+augStateDim));
+    meanWeight(ii+1) = 1/(2*(lamda+augStateDim));
     covarianceWeight(ii+1) = meanWeight(ii+1);
 end
 
@@ -63,9 +63,11 @@ muHat = zeros(stateDim,1);
 SigmaHat = zeros(stateDim, stateDim);
 for ii = 1:numPoints
     uTemp = u+SigmaPoints(4:6,ii);
-    muPred(:,ii) = SigmaPoints(1:3,ii) + [uTemp(2)*cos(SigmaPoints(3,ii)+uTemp(1));
-        uTemp(2)*sin(SigmaPoints(3,ii)+uTemp(1));
-        uTemp(1) + uTemp(3)];
+    %muPred(:,ii) = SigmaPoints(1:3,ii) + [uTemp(2)*cos(SigmaPoints(3,ii)+uTemp(1));
+        %uTemp(2)*sin(SigmaPoints(3,ii)+uTemp(1));
+        %uTemp(1) + uTemp(3)];
+    %muPred(3,ii) = minimizedAngle(muPred(3,ii));
+    muPred(:,ii) = prediction(SigmaPoints(1:3,ii),uTemp);
     muHat = muHat + meanWeight(ii)*muPred(:,ii);
 end
 
