@@ -19,7 +19,7 @@ observationDim=2;
 % UKF params
 augStateDim = stateDim + motionDim + observationDim;
 alfa = 0.001; % alfa and k are the scaling parameters that determine how far
-k = 1;    %the sigma points are spread from the mean.
+k = 0;    %the sigma points are spread from the mean.
 lamda = alfa*alfa*(augStateDim+k)-augStateDim;
 beda = 2;%optimal value for gausian noise 
 % Augmented state
@@ -33,9 +33,21 @@ SigmaPoints(:,1) = mu_a;
 L = chol((lamda + augStateDim)*Sigma_a, 'lower');
 for ii = 1:augStateDim
     SigmaPoints(:,ii+1) = mu_a + L(:,ii);
+    %comment this protection will not affect the results in this case,
+    %but I think that it's good to use it.
+    %SigmaPoints(3,ii+1) = minimizedAngle(SigmaPoints(3,ii+1));
+    %SigmaPoints(4,ii+1) = minimizedAngle(SigmaPoints(4,ii+1));
+    %SigmaPoints(6,ii+1) = minimizedAngle(SigmaPoints(6,ii+1));
+    %SigmaPoints(7,ii+1) = minimizedAngle(SigmaPoints(7,ii+1));
 end
 for ii = augStateDim+1:2*augStateDim
     SigmaPoints(:,ii+1) = mu_a - L(:,ii-augStateDim);
+    %comment this protection will not affect the results in this case,
+    %but I think that it's good to use it.
+    %SigmaPoints(3,ii+1) = minimizedAngle(SigmaPoints(3,ii+1));
+    %SigmaPoints(4,ii+1) = minimizedAngle(SigmaPoints(4,ii+1));
+    %SigmaPoints(6,ii+1) = minimizedAngle(SigmaPoints(6,ii+1));
+    %SigmaPoints(7,ii+1) = minimizedAngle(SigmaPoints(7,ii+1));
 end
 
 % Weights
@@ -69,10 +81,11 @@ for ii = 1:numPoints
     %muPred(3,ii) = minimizedAngle(muPred(3,ii));
     muPred(:,ii) = prediction(SigmaPoints(1:3,ii),uTemp);
     muHat = muHat + meanWeight(ii)*muPred(:,ii);
+    muHat(3) = minimizedAngle(muHat(3));
 end
 
 for ii = 1:numPoints
-    SigmaHat = SigmaHat + covarianceWeight(ii)*(SigmaPoints(1:3,ii)-muHat)*(SigmaPoints(1:3,ii)-muHat)';
+    SigmaHat = SigmaHat + covarianceWeight(ii)*(muPred(1:3,ii)-muHat)*(muPred(1:3,ii)-muHat)';
 end
 %--------------------------------------------------------------
 % Correction step
@@ -83,13 +96,16 @@ zBar =zeros(observationDim,numPoints);
 zHat = 0;
 for ii = 1:numPoints
     zBar(:,ii)  = observation(muPred(:,ii), markerId)+SigmaPoints(7:8,ii);%[bearing angle; markerId]
+    zBar(1,ii) = minimizedAngle(zBar(1,ii));
     zHat = zHat + zBar(:,ii)*meanWeight(ii);
+    zHat(1) = minimizedAngle(zHat(1));
 end
+%zHat(1) = minimizedAngle(zHat(1));
 S = zeros(observationDim,observationDim);
 crossCovariance = zeros(stateDim,observationDim);
 for ii = 1:numPoints
     S = S + covarianceWeight(ii)*(zBar(:,ii)-zHat)*(zBar(:,ii)-zHat)';
-    crossCovariance = crossCovariance + covarianceWeight(ii)*(SigmaPoints(1:stateDim,ii)-muHat)*(zBar(:,ii)-zHat)';
+    crossCovariance = crossCovariance + covarianceWeight(ii)*(muPred(1:stateDim,ii)-muHat)*(zBar(:,ii)-zHat)';
 end
 
 K = crossCovariance/S;
